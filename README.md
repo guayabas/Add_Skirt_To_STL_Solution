@@ -4,7 +4,7 @@ The following are the steps I followed to solve the addition of a "skirt" into a
 
 Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
 
-## Development Environment
+<details><summary>Development Environment</summary>
 I decided to use the following technologies to do the solution
 
 1. **Microsoft Visual Studio 2019 with C++-14 Standard :** To use the Standard Template Library
@@ -13,8 +13,9 @@ I decided to use the following technologies to do the solution
 4. **GLFW :** To create an OS window
 5. **OpenGL Mathematics (GLM) :** To do math with vectors and matrices
 6. **Dear ImGui :** To create a Graphical User Interface 
+</details>
 
-## Open STL file
+<details><summary>Open STL file</summary>
 Initially one should take a look at how the geometry looks. For that you can use any software that is over the internet that supports STL file format (some examples are MeshLab or Blender)
 
 Sound easy but given that I will have to do things in code let me show you how to use the library Assimp for that purpose (based https://learnopengl.com/Model-Loading/Model)
@@ -54,7 +55,7 @@ private:
 	float scaleFactor;
 };
 ```
-</details><br>
+</details>
 
 Notice how the structure `Vertex` has a **position** and a **normal**. Also, the class `CADModel` has the methods `getCenter()` and `getScaleFactor()` that I will describe in a bit
 
@@ -120,7 +121,7 @@ void CADModel::load(const std::string & filename)
 	processNode(scene->mRootNode, scene);
 }
 ```
-</details><br>
+</details>
 
 And voila, that will be the code to load an STL file (in practice any other format of a polygonal mesh). It is worth noticing that
 
@@ -158,14 +159,15 @@ void CADModel::load(const std::string & filename)
 	center = (max + min) * 0.5f;
 }
 ```
-</details><br>
+</details>
 
 With the `min` and `max` positions I am able to find `scaleFactor` and `center` variables. The scale factor and center is important since *most likely* the STL has its own coordinate system and in order to display in on screen I have to do some transformations (scaling and translation) to be Normalize Device Coordinates (NDC). The NDC concept and what is behind a graphics pipeline is out of the scope of the task but a good reference is https://learnopengl.com/
 
 Since I still don't have a *graphics output* let me show you the information of previous methods via the console using `printf()`
 <p align="center"><img src="./OutputImages/WindowsTerminal_CeaHphSoXv.png"></p>
+</details>
 
-## Creating Window To Display STL
+<details><summary>Creating window to display STL</summary>
 I have the STL file now in memory but life is not fun if I don'tsee something on the screen. So let me show you how to render | draw the geometry I just collected into a GLFW window that uses OpenGL.
 
 Given that the task is not to create a full renderer I will be using OpenGL Immediate Mode (a.k.a Old OpenGL or Legacy OpenGL) since it is a bit tedious to create the GPU objects (VAO,VBO) as well the shaders. Thus, no fancy lighting in the display that I will be showing neither optimization of rendering geometries.
@@ -284,7 +286,7 @@ int main(int argc, char ** argv)
 	glfwTerminate();
 }
 ```
-</details><br>
+</details>
 
 And thus when I run the code we can finally see a graphical output of the STL file.
 <p align="center"><img src="./OutputImages/IktaTK2yeg.png"></p>
@@ -300,6 +302,23 @@ And just as a sanity check I decided to open other STL files to see how such geo
 <p align="center"><img src="./OutputImages/34hTjVSKJv.png"></p>
 
 Now I have a setup to start creaing the skirt of the STL file
+</details>
 
-## Finding the edge boundary
+<details><summary>Finding the edge boundary</summary>
+</details>
 
+<details><summary>Sorting the edge boundary</summary>
+</details>
+
+<details><summary>Generating skirt using the sorted edge boundary</summary>
+</details>
+
+<details><summary>Exporting skirt as STL file</summary>
+</details>
+
+<details><summary>Adding interactive GUI to modify parameters on the fly</summary>
+</details>
+
+# Output Result
+Here is an image of the final application. It shows the skirt generated for the asked STL file using 15 levels, a length of 10, and an angle of 60.652 degrees. In the picture the left image is the STL mesh + the skirt mesh displayed with filled polygons while the right image is only the skirt mesh showed in wireframe mode to visualize the tessellation
+<p align="center"><img src="./OutputImages/kiXdnWhfql.png"></p>

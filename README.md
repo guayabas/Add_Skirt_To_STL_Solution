@@ -1,4 +1,21 @@
+# Document Scope
+The following are the steps I followed to solve the addition of a "skirt" into an STL file format. The program is interactive and an instance of it would look like this image
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_vbz8tARRTZ.png"></p>
+
+Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
+
+## Development Environment
+I decided to use the following technologies to do the solution
+
+1. Microsoft Visual Studio 2019 with C++-14 Standard
+2. CMake 3.0 or higher
+3. Open-Asset-Importer -Library (Assimp) : To import | export an STL file 
+4. GLFW : To create an OS window
+5. OpenGL Mathematics (GLM) : To do math with vectors and matrices
+6. Dear ImGui : To create a Graphical User Interface 
+
 # CompGeo_Add_Skirt
+
 ## Objective
 Modify a shape, a 3D geometry, so that it can be "formed" using our Dual Sided Incremental Forming (DSIF) process. 
 <p align="center"><img src=https://user-images.githubusercontent.com/91622575/174198770-e7d3b0c8-156c-4757-8b05-1a29f07e73e5.png></p>
@@ -14,11 +31,13 @@ To be "formable" or manufacturable using our DSIF process, the geometry must res
 
 
 In addition to its perimeter lying in a single plane, an ideal manufacturable surface typically has a draft, or is slanted less than 90 degrees towards the plane. Typically the transition from part surface to extended surface, over the original edge, causes a change in direction. For manufacturability, it is best for the newly added skirt surface to extend smoothly beyond the edge of the orignal part. Often this can be achieved by orienting the part optimally before extending its edges. As such, to be manufacturable, there are several other requirements and constraints - but those are beyond the scope of this assignment.
+
 ## Task
 Create a program that...
 - Takes in a 3D geometry in form of a .STL file. Use provided file - part.STL.
 - Programmatically adds a "skirt" to the provided 3D geometry.
 - Outputs a new .STL file - part_skirted.STL.
+
 ## Constraints, Assumptions and Terminology
 - There are several shapes which are impossible to form, and are assumed not to be used as input. Some examples are...
   * Shapes that form a closed volume - a sphere,
@@ -28,6 +47,7 @@ Create a program that...
 - Once the part is skirted, its new perimeter, formed by extending the edges is located in the z=0 plane.
 - Imagine the new skirt to be a slanting wall falling from the z=0 plane. The acute angle this wall makes with the z=0 plane will be referred to as the "wall-angle" and will be a constrained value. 
 - The edges shown in images here are filleted - another requirement of manufacturable geometries. But you can ignore this requirement and create edges without fillets.
+
 ## Requirements
 - The program can be a simple command line script, or optionally include a user-friendly GUI.
 - Develop using your language of choice (we prefer Python).
@@ -35,12 +55,14 @@ Create a program that...
 - The provided geometry (part.STL) may be re-oriented using your choice of CAD tools, before being used as input to your program.
 - The deliverables must include documentation and all artifacts necessary to setup and run the program.
 - To enable review, deliverables must include code - not just executables. And per good programming practices, must be sufficiently documented for ease of understanding.
+
 ## Optional Challenge (any or all of the features for bonus points)
 - Update your program to accept any .STL file (limited by the constraints described above) and output a skirted geometry.
 - Create a GUI that includes display windows to visualize the input and output 3D geometries.
 - Make the visualization window interactive, allowing user to manipulate the geometry displayed in the window.
 - Allow user to re-orient and update the input geometry.
 - Add user controls so the constraints can be adjusted and applied to update output geometry.
+
 ## Submission
 In order to submit the assignment, do the following:
 

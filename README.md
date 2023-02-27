@@ -1,5 +1,5 @@
 # Document Scope
-The following are the steps I followed to solve the addition of a "skirt" into an STL file format. The program is interactive and a tipycal instance would look like this image
+The following are the steps I followed to solve the addition of a "skirt" for a STL file format. The program is interactive and a tipycal instance would look like this image
 <p align="center"><img src="./OutputImages/AddSkirtToSTL_vbz8tARRTZ.png"></p>
 
 Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
@@ -7,18 +7,18 @@ Above image is showing a skirt generated for a simple STL file that represents a
 <details><summary>Development Environment</summary>
 I decided to use the following technologies to do the solution
 
-1. **Microsoft Visual Studio 2019 with C++-14 Standard :** To use the Standard Template Library
-2. **CMake 3.0 or higher :** To have crossplatform solution
-3. **Open-Asset-Importer -Library (Assimp) :** To import | export an STL file 
+1. **Microsoft Visual Studio 2019 with C++14 Standard :** To use the Standard Template Library
+2. **CMake 3.0 or higher :** To have a crossplatform solution
+3. **Open-Asset-Importer -Library (Assimp) :** To import | export a STL file 
 4. **GLFW :** To create an OS window
 5. **OpenGL Mathematics (GLM) :** To do math with vectors and matrices
 6. **Dear ImGui :** To create a Graphical User Interface 
 </details>
 
-<details><summary>Open STL file</summary>
+<details><summary>Open a STL file</summary>
 Initially one should take a look at how the geometry looks. For that you can use any software that is over the internet that supports STL file format (some examples are MeshLab or Blender)
 
-Sound easy but given that I will have to do things in code let me show you how to use the library Assimp for that purpose (based https://learnopengl.com/Model-Loading/Model)
+That sounds easy but given that I will have to do things in code let me show you how to use the library Assimp (based https://learnopengl.com/Model-Loading/Model) for the purpose of loading a STL file
 
 I created 2 classes, `Mesh` and `CADModel`. A `Mesh` contains the geometry and connectivity while a `CADModel` is a composition of meshes. Here is how the interface looks for each class
 <details><summary> Show Code </summary>
@@ -57,14 +57,14 @@ private:
 ```
 </details>
 
-Notice how the structure `Vertex` has a **position** and a **normal**. Also, the class `CADModel` has the methods `getCenter()` and `getScaleFactor()` that I will describe in a bit
+Notice how the structure `Vertex` has a **position** and a **normal**. Also, the class `CADModel` has the methods `getCenter()` and `getScaleFactor()` which returns `center` and `scaleFactor` variables respectively. Those values are computed at the end of this section.
 
-The `load` method does the work of grabbing the data from our STL file. It returns an object of the type `const aiScene *` that has the description of the model, i.e.
+The `load` method does the work of grabbing the data from our STL file. It returns an object of the type `const aiScene *` that has the description of the part, i.e.
 
-1. How many meshes does the model has
+1. How many meshes does the part has
 2. For each mesh what is the relation between the vertices and connectivity indices, a.k.a topology
 
-and such object type should be plugin in the `processNode()` method which is the one responsible for using `processMesh()` to collect the geometrical information. The implementation for all those methods looks like
+The scene needs to be plug-in with the `processNode()` method which is the one responsible for using `processMesh()` to collect the geometrical information. The implementation for all those methods looks like
 <details><summary> Show Code </summary>
 
 ```Cpp
@@ -123,12 +123,12 @@ void CADModel::load(const std::string & filename)
 ```
 </details>
 
-And voila, that will be the code to load an STL file (in practice any other format of a polygonal mesh). It is worth noticing that
+And voila, that will be the code to load an STL file (in practice any other format of a 3D model like OBJ, FBX, etc.). It is worth noticing that
 
-1. When fetching the normal of a vertex we are normalizing it via `glm::normalize()`. For just loading the geometry that is irrelevant but I need those normals to be unit length for a later part so better to do it as soon as possible.
+1. When fetching the normal of a vertex we are normalizing it via `glm::normalize()`. For just loading the geometry that is irrelevant but I need those normals to be unit length for a later section so better to do it as soon as possible.
 2. The collection of connectivity is supposing to have **triangular face** since it is collecting 3 indices per face. This could be not entirely true but Assimp tries to *protect* such via the flag `aiProcess_Triangulate`. I could also write code there to decide what happens if a face has more than 3 indices (like a quad for example) but that is out of the scope of the task.
 
-Everything good but how do I know the dimensions of the object? Well, a common way to solve such is to find the **axis aligned bounding box**. For such the implementation is simple, just traverse all vertices and keep the max and min in each direction
+Everything good but how do I know the dimensions of the object? Well, a common way to solve such is to find the **axis aligned bounding box**. For such, the implementation is simple, just traverse all vertices and keep the max and min in each direction
 <details><summary> Show Code </summary>
 
 ```Cpp
@@ -161,7 +161,7 @@ void CADModel::load(const std::string & filename)
 ```
 </details>
 
-With the `min` and `max` positions I am able to find `scaleFactor` and `center` variables. The scale factor and center is important since *most likely* the STL has its own coordinate system and in order to display in on screen I have to do some transformations (scaling and translation) to be Normalize Device Coordinates (NDC). The NDC concept and what is behind a graphics pipeline is out of the scope of the task but a good reference is https://learnopengl.com/
+With the `min` and `max` positions I am able to compute `scaleFactor` and `center` variables. The scale factor and center is important since *most likely* the STL has its own coordinate system and in order to display it on screen I have to do some transformations (scale and translation) to be in Normalize Device Coordinates (NDC). The NDC concept and what is behind a graphics pipeline is out of the scope of the task but a good reference is https://learnopengl.com/
 
 Since I still don't have a *graphics output* let me show you the information of previous methods via the console using `printf()`
 <p align="center"><img src="./OutputImages/WindowsTerminal_CeaHphSoXv.png"></p>
@@ -170,7 +170,7 @@ Since I still don't have a *graphics output* let me show you the information of 
 <details><summary>Creating window to display STL</summary>
 I have the STL file now in memory but life is not fun if I don'tsee something on the screen. So let me show you how to render | draw the geometry I just collected into a GLFW window that uses OpenGL.
 
-Given that the task is not to create a full renderer I will be using OpenGL Immediate Mode (a.k.a Old OpenGL or Legacy OpenGL) since it is a bit tedious to create the GPU objects (VAO,VBO) as well the shaders. Thus, no fancy lighting in the display that I will be showing neither optimization of rendering geometries.
+Given that the task is not to create a full renderer I will be using OpenGL Immediate Mode (a.k.a Old OpenGL or Legacy OpenGL) since it is a bit tedious to create the GPU objects (VAO,VBO) as well the shaders for modern OpenGL. Thus, no fancy lighting in the display that I will be using neither optimization of rendering geometries.
 <details><summary> Show Code </summary>
 
 ```Cpp
@@ -296,12 +296,12 @@ It looks about right that the STL part has a larger dimension in the -z componen
 Notice the following
 1. I am fetching the `getScaleFactor()` of the `CADModel` object since I need to rescale the geometry to *fit* in the display window.
 2. I am using a common **perspective projection** with 45 degrees of field of view and keeping the aspect ratio not distorted
-3. It might seem wasteful the transformation I have for the *view matrix* (`Rx`, `Ry`, `Tx`, `Ty`, `Tz`) but in the final code I added (which is not show in above snippet) a trackball camera view where you can rotate with the left button mouse, pan with the right button mouse, and zoom in | out with the scroll wheel
+3. It might seem wasteful the transformations I have for the *view matrix* (`Rx`, `Ry`, `Tx`, `Ty`, `Tz`) but in the final code I added (which is not show in above snippet) a trackball camera view where you can **rotate with the left button mouse, pan with the right button mouse, and zoom in | out with the scroll wheel**
 
-And just as a sanity check I decided to open other STL files to see how such geometries such look.
+And just as a sanity check I decided to open other STL files to see how such geometries look.
 <p align="center"><img src="./OutputImages/34hTjVSKJv.png"></p>
 
-Now I have a setup to start creaing the skirt of the STL file
+Now I have a setup | graphical output to start creating the skirt of the STL file.
 </details>
 
 <details><summary>Finding the edge boundary</summary>
@@ -319,6 +319,19 @@ Now I have a setup to start creaing the skirt of the STL file
 <details><summary>Adding interactive GUI to modify parameters on the fly</summary>
 </details>
 
+<details><summary>Missing stuff in the application</summary>
+This section is to list the things that are missing in the previous solution, after all, no software is perfect and while I tried to cover as much as possible I had also a *deadline* regarding the amount of time I should be spending making the solution. Thus, here are the things that require fixing in my code
+
+* Refactor the code to have multiple translation units (a.k.a different cpp files)
+* Remove compilation warnings 
+* Solve the sorting of edge boundary in a general way (which will open to test the solution to any STL file model that meets the task constraints)
+* Test application in other computers to catch the possibility of missing dependencies (like runtime libraries) or unexpected behavior from drivers (like OpenGL implementation in other GPUs)
+* Cleaning the objects created with the `new` operator when exporting the STL file. My solution crashes in Release mode given that such memory throws when running the application
+* Compare my solution of finding the edge boundary of the STL part with a library such as CGAL
+* *Corners* of the STL part are currently handled by just linearly stitching edge to edge but a better solution would be to smooth stitching to not have discontinous regions. Same goes with the level 0 of the skirt. The task description makes a reference to it as *filleted edges*
+* Proofread the README.md
+</details>
+
 # Output Result
-Here is an image of the final application. It shows the skirt generated for the asked STL file using 15 levels, a length of 10, and an angle of 60.652 degrees. In the picture the left image is the STL mesh + the skirt mesh displayed with filled polygons while the right image is only the skirt mesh showed in wireframe mode to visualize the tessellation
+Here is a figure of the final application. It shows the skirt generated for the asked STL file using 15 levels, a length of 10, and an angle of 60.652 degrees. In the picture the left image is the STL mesh + the skirt mesh displayed with filled polygons while the right image is only the skirt mesh showed in wireframe mode to visualize the tessellation
 <p align="center"><img src="./OutputImages/kiXdnWhfql.png"></p>

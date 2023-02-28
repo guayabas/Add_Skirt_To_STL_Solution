@@ -656,7 +656,7 @@ In general the mistake is that our initial STL part is not oriented | aligned wi
 
 In the code I have to the following
 
-<details open><summary>Show Code</summary>
+<details close><summary>Show Code</summary>
 
 ```Cpp
 // ... previous code to compute the boundary segments ...

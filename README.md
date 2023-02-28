@@ -714,14 +714,14 @@ Here is an image showing the skirt with the corner edges with stitching.
 </details>
 
 #### Exporting skirt as STL file
-<details open><summary>Show Content</summary>
+<details close><summary>Show Content</summary>
 
 Last but not least is to save the created skirt in a STL file format.
 
 Doing this is simple (although can have some headaches) given that Assimp is able to not just import but also export geometries.
 
 Here is the code
-<details open><summary>Show Code</summary>
+<details close><summary>Show Code</summary>
 
 ```Cpp
 void CADModel::saveSkirt()
@@ -741,7 +741,7 @@ void CADModel::saveSkirt()
 The *difficult* part of previous snippet is filling information of the `aiScene` object. This is because the internal variables of the `aiScene` are pointers that if are not handled careful the program throws, crashes, or will just save a corrupted file.
 
 Here a snippet of how the filling of the `aiScene` must be done
-<details open><summary>Show Code</summary>
+<details close><summary>Show Code</summary>
 
 ```Cpp
 aiScene outputScene;

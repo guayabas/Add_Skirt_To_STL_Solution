@@ -364,6 +364,11 @@ void addEdgeToEdgesHash(EdgeHash & edges, Edge & edge)
 	}
 }
 
+inline glm::vec3 getDirectionForEdge(const Edge & edge, const glm::vec3 & n)
+{
+	return glm::cross(glm::normalize(edge.v1 - edge.v0), n);
+}
+
 void CADModel::generateSkirt(unsigned int levels, float length, float angle)
 {
 	for (auto & skirtSegment : skirt.vertices)
@@ -389,10 +394,11 @@ void CADModel::generateSkirt(unsigned int levels, float length, float angle)
 				skirt.vertices.back().push_back(boundaryedge.v1);
 				for (int n = 1; n <= skirt.numberOfLevels; n++)
 				{
-					float normalLength = ((n / float(skirt.numberOfLevels)) * skirt.lengthScale);
-					float slantValue = fallingDirectionLength * (n / float(skirt.numberOfLevels));
-					skirt.vertices.back().push_back(boundaryedge.v0 - normalLength * segment.normal + slantValue * segment.direction);
-					skirt.vertices.back().push_back(boundaryedge.v1 - normalLength * segment.normal + slantValue * segment.direction);
+					float incrementFactor = (n / float(skirt.numberOfLevels));
+					float normalLength = (incrementFactor * skirt.lengthScale);
+					float directionLength = (fallingDirectionLength * incrementFactor);
+					skirt.vertices.back().push_back(boundaryedge.v0 - normalLength * segment.normal + directionLength * segment.direction);
+					skirt.vertices.back().push_back(boundaryedge.v1 - normalLength * segment.normal + directionLength * segment.direction);
 				}
 			}
 		}
@@ -1155,7 +1161,7 @@ int main(int argc, char ** argv)
 			if (ImGui::CollapsingHeader("Skirt Generation Settings", ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				auto levelsChanged = ImGui::SliderInt("Number of Levels", &params.skirtLevels, 1, 25);
-				auto lengthChanged = ImGui::SliderFloat("Length", &params.skirtLength, 0.1f, 10.0f);
+				auto lengthChanged = ImGui::SliderFloat("Length", &params.skirtLength, 0.1f, 25.0f);
 				auto fallingAngleChanged = ImGui::SliderFloat("Falling Angle", &params.skirtFallingAngle, 0.0f, 90.0f);
 				if (levelsChanged || lengthChanged || fallingAngleChanged)
 				{

@@ -550,7 +550,167 @@ As a note, I think this section is the most important in developing the upcoming
 </details>
 
 ### Generating skirt using the sorted edge boundary
-<details><summary>Show Content</summary>
+<details close><summary>Show Content</summary>
+
+For creating the skirt I just need to follow this diagram
+
+<p align="center"><img src="./OutputImages/chrome_dTIZI7VhPp.png"></p>
+
+The idea is to obtain the **orange points** by using the point of an edge as the *origin* and move from there using the **normal** and **direction** vectors (here is why in previous sections we had normalized values, to have those movements not scaled)
+
+When using normalized vectors the step discretization becomes easy since each increment will represent a *unit*. Thus, to create a skirt we only need to do above diagram in multiple times converting the last points computed (orange ones) in the current edge to use for the movement. Here is a figure showing a skirt with 3 levels at a 0 degree angle
+
+<p align="center"><img src="./OutputImages/egx3HRvLgS.png"></p>
+
+So how do I control then the *falling* angle for the skirt? After all if I keep the unit vector I will have 45 degrees or if I omit the `direction` then I have the edge case of 0 angle. The idea is just to use trigonometry. I know that the tangent function of an angle is equal to the **opposite edge divided by the adjacent edge**. From above diagram if one looks the side view will notice that the adjacent edge is along the normal vector while the opposite edge along the direction vector. Therefore, the angle can be controlled 
+
+$$
+\tan(\text{Skirt Falling Angle}) = \frac{\text{Edge}_{\text{direction}}}{\text{Edge}_{\text{normal}}}
+$$
+
+Here is a figure showing 2 angles, 30 degrees (left images) and 70 degrees (right images).
+
+<p align="center"><img src="./OutputImages/7pptsXZ8uC.png"></p>
+
+I can go to the extreme of putting 90 degrees as a sanity check (In real manufacturing that would be a non-feasible angle tho)
+
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_08Lu7Ol9tC.png"></p>
+
+Here is the code snippet that does the skirt creation given the sorted boundary edge
+
+<details close><summary>Show Code</summary>
+
+```Cpp
+struct Skirt
+{
+	std::vector<std::vector<glm::vec3>> vertices;
+	unsigned int numberOfLevels = 0;
+	float lengthScale = 0.0f;
+	float fallingAngle = 0.0f;
+
+	void setNumberOfLevels(unsigned int levels)
+	{
+		numberOfLevels = levels;
+	}
+
+	void setFallingAngle(float angle)
+	{
+		fallingAngle = angle;
+	}
+
+	void setLengthScale(float length)
+	{
+		lengthScale = length;
+	}
+};
+
+inline glm::vec3 getDirectionForEdge(const Edge & edge, const glm::vec3 & n)
+{
+	return glm::cross(glm::normalize(edge.v1 - edge.v0), n);
+}
+
+void CADModel::generateSkirt(unsigned int levels, float length, float angle)
+{
+	for (auto & segment : segments)
+	{
+		for (auto & boundaryedge : segment.edges)
+		{
+			skirt.vertices.push_back(std::vector<glm::vec3>());
+			skirt.vertices.back().push_back(boundaryedge.v0);
+			skirt.vertices.back().push_back(boundaryedge.v1);
+			for (int n = 1; n <= skirt.numberOfLevels; n++)
+			{
+				float incrementFactor = (n / float(skirt.numberOfLevels));
+				float normalLength = (incrementFactor * skirt.lengthScale);
+				float directionLength = (fallingDirectionLength * incrementFactor);
+				auto d0 = getDirectionForEdge(boundaryedge, boundaryedge.n0);
+				auto d1 = getDirectionForEdge(boundaryedge, boundaryedge.n1);
+				skirt.vertices.back().push_back(boundaryedge.v0 - normalLength * boundaryedge.n0 + directionLength * d0);
+				skirt.vertices.back().push_back(boundaryedge.v1 - normalLength * boundaryedge.n1 + directionLength * d1);
+			}
+		}
+	}
+}
+```
+
+</details>
+
+The variable `skirt` in previous snippet is a member of the `CADModel` class.
+
+Previous solution has some pitfall tho. There are 2 things to notice
+1. I still need to handle the stitching in the intersection of two edges
+2. If one notices, the resulting mesh seems to have some gaps at each skirt segment
+
+The first is *no more* than just finding the *corners* in the boundary edge to do the stitching. I will leave this for the end of the section.
+
+The more concerning is the gaps in the mesh, why is that happening? First I can show an image where the error looks evident
+
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_8SDgrZ4hAw.png"></p>
+
+Some intersections are happening. The mistake is that although the general idea of using the `normal` and `direction` vector is correct, using the local information does not encodes the *movement* of the curves at the boundary edge. How to solve it? With two steps
+
+1. Find the average normal of each segment (this will encode the movement information).
+2. Remember that I am collecting each curve in a segment that can be seen as the 6 standard coordinate planes.
+
+In general the mistake is that our initial STL part is not oriented | aligned with the orthogonal XYZ coordinate system and by doing 1 and 2 points I am finding implicitly what should be the transformation to align the mesh. The topic is something called *Gram-Schmidt orthogonolization* but is outside of the task to go in details about it.
+
+In the code I have to the following
+
+<details open><summary>Show Code</summary>
+
+```Cpp
+// ... previous code to compute the boundary segments ...
+segments[0].direction = glm::vec3(+1.0f, 0.0f, 0.0f);
+segments[1].direction = glm::vec3(-1.0f, 0.0f, 0.0f);
+segments[2].direction = glm::vec3(0.0f, +1.0f, 0.0f);
+segments[3].direction = glm::vec3(0.0f, -1.0f, 0.0f);
+segments[4].direction = glm::vec3(0.0f, 0.0f, +1.0f);
+segments[5].direction = glm::vec3(0.0f, 0.0f, -1.0f);
+for (auto & segment : segments)
+{
+	glm::vec3 averageNormal = glm::vec3(0.0f);
+	for (auto & boundaryedge : segment.edges)
+	{
+		averageNormal += glm::normalize(boundaryedge.n0 + boundaryedge.n1);
+	}
+	segment.normal = glm::normalize(averageNormal);
+}
+
+// ... update the generateSkirt() function with ...
+for (auto & segment : segments)
+{
+	for (auto & boundaryedge : segment.edges)
+	{
+		// ... see previous code that goes here ...
+		for (int n = 1; n <= skirt.numberOfLevels; n++)
+		{
+			// ... see previous code that goes here ... 
+			skirt.vertices.back().push_back(boundaryedge.v0 - normalLength * segment.normal + directionLength * segment.direction);
+			skirt.vertices.back().push_back(boundaryedge.v1 - normalLength * segment.normal + directionLength * segment.direction);
+		}
+	}
+```
+
+</details>
+
+And after those editions I finally have the non-intersecting skirt that I was looking for
+
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_cDIseSbDgF.png"></p>
+
+Last part is just to handle the *corners*. To do so I could do one of the following
+
+1. Find those corners by checking the dot product between consecutive edges and when that angle is 90 mark that as finding a corner
+2. For each segment find the min and max vertex of the curve
+
+Possibility one would be the generic way of solving finding a corner but relies in having the input curve sorted which I do not have.
+
+That leaves me with doing second option, the code is simple, just find the distance of a point to the origin and collect which one is the minimum and which one is the maximum.
+
+With those min | max values, I can stitch those corners. For simplicity I left the stitching as simple as just connect both edges without smoothing. A more pleasant solution will be to smooth the connection between the edges.
+
+Here is an image showing the skirt with the corner edges with stitching.
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_sU7jvGKzEH.png"></p>
+
 </details>
 
 ### Exporting skirt as STL file

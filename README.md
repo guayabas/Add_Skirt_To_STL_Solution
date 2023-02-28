@@ -810,7 +810,7 @@ Instead, let me show you the final result of adding some slider to manipulate **
 
 </details>
 
-### Missing stuff in the application
+#### Missing stuff in the application
 <details><summary>Show Content</summary>
 This section is to list the things that are missing in the previous solution, after all, no software is perfect and while I tried to cover as much as possible I had also a *deadline* regarding the amount of time I should be spending making the solution. Thus, here are the things that require fixing in my code
 

@@ -798,7 +798,7 @@ The current provided solution code has commented the export portion given that i
 </details>
 
 #### Adding interactive GUI to modify parameters on the fly
-<details close><summary>Show Content</summary>
+<details open><summary>Show Content</summary>
 
 Another fun part to do in any program is to have a GUI that can change parameters on the fly. I decided to use the library called Dear ImGui (very common in the graphics programming world).
 

@@ -4,7 +4,7 @@ The following are the steps I followed to solve the addition of a "skirt" for a 
 
 Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
 
-## Development Environment
+### Development Environment
 <details><summary>Show Content</summary>
 I decided to use the following technologies to do the solution
 
@@ -16,7 +16,7 @@ I decided to use the following technologies to do the solution
 6. **Dear ImGui :** To create a Graphical User Interface 
 </details>
 
-## Open a STL file
+### Open a STL file
 <details><summary>Show Content</summary>
 Initially one should take a look at how the geometry looks. For that you can use any software that is over the internet that supports STL file format (some examples are MeshLab or Blender)
 
@@ -169,7 +169,7 @@ Since I still don't have a *graphics output* let me show you the information of 
 <p align="center"><img src="./OutputImages/WindowsTerminal_CeaHphSoXv.png"></p>
 </details>
 
-## Creaing window to display STL
+### Creaing window to display STL
 <details><summary>Show Content</summary>
 I have the STL file now in memory but life is not fun if I don'tsee something on the screen. So let me show you how to render | draw the geometry I just collected into a GLFW window that uses OpenGL.
 
@@ -307,7 +307,7 @@ And just as a sanity check I decided to open other STL files to see how such geo
 Now I have a setup | graphical output to start creating the skirt of the STL file.
 </details>
 
-## Finding the edge boundary
+### Finding the edge boundary
 <details close><summary>Show Content</summary>
 
 From seeing the STL I can see that a solution to create a skirt would be to find the boundary (edges) of a mesh and extend it along the normal at each vertex. So the question for this section is how to find such boundary?
@@ -452,8 +452,8 @@ And if I display such boundary I have the following nice image (notice I am omit
 <p align="center"><img src="./OutputImages/AddSkirtToSTL_WKFQjSliu1.png"></p>
 </details>
 
-## Sorting the edge boundary
-<details open><summary>Show Content</summary>
+### Sorting the edge boundary
+<details close><summary>Show Content</summary>
 
 There is one more thing to do before moving into the skirt creation. The previous edge boundary I found might not be sorted, what do I mean by that? Well, if one thinks about it, when collecting edges it might happen that you start collecting an edge at let's say *the beginning of the boundary* but then you move to the *middle of the boundary* and then maybe return to the beginning. And worse, how do you I know what is the start and what is the end? So how to know the actual order of the edges in the boundary?
 
@@ -549,19 +549,19 @@ As a note, I think this section is the most important in developing the upcoming
 
 </details>
 
-## Generating skirt using the sorted edge boundary
+### Generating skirt using the sorted edge boundary
 <details><summary>Show Content</summary>
 </details>
 
-## Exporting skirt as STL file
+### Exporting skirt as STL file
 <details><summary>Show Content</summary>
 </details>
 
-## Adding interactive GUI to modify parameters on the fly
+### Adding interactive GUI to modify parameters on the fly
 <details><summary>Show Content</summary>
 </details>
 
-## Missing stuff in the application
+### Missing stuff in the application
 <details><summary>Show Content</summary>
 This section is to list the things that are missing in the previous solution, after all, no software is perfect and while I tried to cover as much as possible I had also a *deadline* regarding the amount of time I should be spending making the solution. Thus, here are the things that require fixing in my code
 

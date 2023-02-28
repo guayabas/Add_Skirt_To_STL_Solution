@@ -445,13 +445,108 @@ void CADModel::load(const std::string & filename)
 
 </details>
 
+Notice that in previous snippet the variable `meshes` in general is a vector containing multiple meshes but for simplicity I know the provided STL file has only 1 mesh. If the STL is a more complex CAD model then such part of the code needs to be updated.
+
 And if I display such boundary I have the following nice image (notice I am omitting the OpenGL code to display in this notes but the code in the repo has it)
 
 <p align="center"><img src="./OutputImages/AddSkirtToSTL_WKFQjSliu1.png"></p>
 </details>
 
 ## Sorting the edge boundary
-<details><summary>Show Content</summary>
+<details open><summary>Show Content</summary>
+
+There is one more thing to do before moving into the skirt creation. The previous edge boundary I found might not be sorted, what do I mean by that? Well, if one thinks about it, when collecting edges it might happen that you start collecting an edge at let's say *the beginning of the boundary* but then you move to the *middle of the boundary* and then maybe return to the beginning. And worse, how do you I know what is the start and what is the end? So how to know the actual order of the edges in the boundary?
+
+A generic solution is to do it like a *chain-puzzle* and start joining edges that are next to each other to have at the end one chain | loop. I am currently working in figuring out such logic | code but there is another way of thinking to find such ordering to move with the task of creating the skirt.
+
+When the task has the **assumptions** of having shapes that do not form a closed volume, do not have intersecting planes, and have well-defined orientability (opposed to a Mobius strip) it also means the surface has boundary edges that are in one of 6 segments. Think like the segments are the planes with normals **(1,0,0)**, **(-1,0,0)**, **(0,1,0)**, **(0,-1,0)**, **(0,0,1)**, **(0,0,-1)**. The extreme case for my assumption is a circle.
+
+Thus, how do I know which part of the boundary belong to which segment? By using the **cross product**. The idea is to grab the tangent of an edge (by definition is the edge itself) and the normal (**here you can see why I collected the normal in my `struct Edge`**) to create the orthogonal vector of those 2. Edges that have the same direction would be in the same segment.
+
+So, first let me create a structure that will define the ordering of the boundary edge
+<details close><summary>Show Code</summary>
+
+```Cpp
+struct BoundaySegment
+{
+	std::vector<Edge> edges;
+	glm::vec3 direction = glm::vec3(0.0f);
+};
+```
+
+</details>
+
+And then adding the variable `std::vector<BoundarySegment> segments`, the code for finding such *segments* is
+<details close><summary>Show Code</summary>
+
+```Cpp
+void CADModel::load(const std::string & filename)
+{
+	// ... previous code ...
+	segments.resize(6);
+	for (size_t n = 0; n < boundary.size(); n++)
+	{
+		auto & edge = boundary[n];
+		auto & normal = glm::normalize(edge.n0 + edge.n1);
+		glm::vec3 direction = glm::cross(glm::normalize(edge.v1 - edge.v0), normal);
+		int segmentIndex = -1;
+		auto maxDirectionValue = std::max(
+			std::abs(direction.x), 
+			std::max(
+				std::abs(direction.y), 
+				std::abs(direction.z)
+				)
+			);
+		if (maxDirectionValue == direction.x)
+		{
+			segmentIndex = 0;
+		}
+		else if (maxDirectionValue == -direction.x)
+		{
+			segmentIndex = 1;
+		}
+		else if (maxDirectionValue == direction.y)
+		{
+			segmentIndex = 2;
+		}
+		else if (maxDirectionValue == -direction.y)
+		{
+			segmentIndex = 3;
+		}
+		else if (maxDirectionValue == direction.z)
+		{
+			segmentIndex = 4;
+		}
+		else
+		{
+			segmentIndex = 5;
+		}
+		segments[segmentIndex].edges.push_back(edge);
+	}
+}
+```
+
+</details>
+
+Notice that I added the normals at each edge position and normalize such value. I also normalize the vector composed by the difference in points of the edge. This is to have also a unitary vector `direction` of which we can find the segment that belongs to (If values are not normalized comparisons would be not correct)
+
+These segments can be rendered with different colors representing the segment that each edge belongs to. I decided to have the following color mapping
+
+* red : max direction along (1, 0, 0)
+* green : max direction along (-1, 0, 0)
+* blue : max direction along (0, 1, 0)
+* yellow : max direction along (0, -1, 0)
+* magenta : max direction along (0, 0, 1)
+* cyan : max direction along (0, 0, -1)
+
+And here is a figure showing the result in a plane test as well the STL part provided
+
+<p align="center"><img src="./OutputImages/pW1lCtaDQJ.png"></p>
+
+Notice that according to my algorithm it verifies that each part would have 4 segments and each segment is according to our color mapping. Don't forget I am representing the world axes with the lines that are show spawning from the origin.
+
+As a note, I think this section is the most important in developing the upcoming skirt of the CAD model. The reason is that without *ordering* of the boundary (or its hack of finding segments) one cannot decide how to find a corner (which will be necessary given that those regions will require stitching) or what would be the *optimized path* for moving in the boundary which in 3D printing or metal bending is important.
+
 </details>
 
 ## Generating skirt using the sorted edge boundary

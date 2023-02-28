@@ -1198,8 +1198,8 @@ int main(int argc, char ** argv)
 			auto S = glm::scale(identityMatrix, glm::vec3(1.0f / CADmodel.getScaleFactor()));
 			auto T = glm::translate(identityMatrix, glm::vec3(-CADmodel.getCenter()));
 			auto R = glm::rotate(identityMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-			//modelMatrix = (S * T);
-			modelMatrix = (R * S * T);
+			modelMatrix = (S * T);
+			//modelMatrix = (R * S * T);
 			//modelMatrix = S;
 			modelviewMatrix = (viewMatrix * modelMatrix);
 			glLoadIdentity();

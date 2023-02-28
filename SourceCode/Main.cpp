@@ -68,8 +68,7 @@ struct Edge
 	{
 
 	}
-
-	bool boundary = true;
+	//bool boundary = true;
 	glm::vec3 v0;
 	glm::vec3 v1;
 	glm::vec3 n0;
@@ -86,14 +85,6 @@ struct HashForPoint
     }
 };
 
-struct ComparatorForPoint
-{
-	bool operator()(const glm::vec3 & lhs, const glm::vec3 & rhs) const
-	{
-		return ((lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z));
-	}
-};
-
 void printEdgeInformation(const Edge & edge)
 {
 	printf("\t(%3.5f, %3.5f, %3.5f) - (%3.5f, %3.5f, %3.5f)\n", 
@@ -102,12 +93,28 @@ void printEdgeInformation(const Edge & edge)
 	);
 }
 
+struct ComparatorForPoint
+{
+	bool operator()(const glm::vec3 & lhs, const glm::vec3 & rhs) const
+	{
+		return ((lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z));
+	}
+};
+
+inline std::string getStringFromPoint(const glm::vec3 & v)
+{
+	return 
+		std::to_string(v.x) + "_" + 
+		std::to_string(v.y) + "_" + 
+		std::to_string(v.z); 
+}
+
 struct HashForEdge
 {
-	std::size_t operator()(Edge const & edge) const noexcept
+	std::size_t operator()(Edge const & edge) const
 	{
-		std::string s0 = std::to_string(edge.v0.x) + "_" + std::to_string(edge.v0.y) + "_" + std::to_string(edge.v0.z); 
-		std::string s1 = std::to_string(edge.v1.x) + "_" + std::to_string(edge.v1.y) + "_" + std::to_string(edge.v1.z); 
+		std::string s0 = getStringFromPoint(edge.v0);
+		std::string s1 = getStringFromPoint(edge.v1);
 		return std::hash<std::string>{}(s0 + "_" + s1);
 	}
 };
@@ -117,11 +124,12 @@ struct ComparatorForEdge
 	bool operator()(const Edge & lhs, const Edge & rhs) const
 	{
 		auto pointComparator = ComparatorForPoint();
-		auto order1 = pointComparator.operator()(lhs.v0, rhs.v0) && pointComparator.operator()(lhs.v1, rhs.v1);
-		auto order2 = pointComparator.operator()(lhs.v0, rhs.v1) && pointComparator.operator()(lhs.v1, rhs.v0);
-		//printEdgeInformation(lhs);
-		//printEdgeInformation(rhs);
-		//printf("\t%d - %d\n", order1, order2);
+		auto order1 = 
+			pointComparator.operator()(lhs.v0, rhs.v0) && 
+			pointComparator.operator()(lhs.v1, rhs.v1);
+		auto order2 = 
+			pointComparator.operator()(lhs.v0, rhs.v1) && 
+			pointComparator.operator()(lhs.v1, rhs.v0);
 		return (order1 || order2);
 	}
 };
@@ -169,7 +177,7 @@ struct Skirt
 struct BoundaySegment
 {
 	std::unordered_set<glm::vec3, HashForPoint, ComparatorForPoint> vertices;
-	std::vector<BoundaryEdge> edges;
+	std::vector<Edge> edges;
 	glm::vec3 normal = glm::vec3(0.0f);
 	glm::vec3 direction = glm::vec3(0.0f);
 	glm::vec3 min = glm::vec3(+std::numeric_limits<float>::infinity());
@@ -197,13 +205,15 @@ private:
 	std::chrono::steady_clock::time_point t2;
 };
 
+typedef std::unordered_map<Edge, bool, HashForEdge, ComparatorForEdge> EdgeHash;
+
 class CADModel
 {
 public:
 	void load(const std::string &);
 	const Mesh & getMesh(unsigned int) const;
 	unsigned int getNumberOfMeshes() const;
-	const std::vector<BoundaryEdge> & getBoundary() const;
+	const std::vector<Edge> & getBoundary() const;
 	const Skirt & getSkirt(unsigned int) const;
 	glm::vec3 getCenter();
 	float getScaleFactor();
@@ -221,10 +231,10 @@ private:
 	void processNode(aiNode *, const aiScene *);
 	std::vector<Mesh> meshes;
 	
-	std::vector<Edge> edgesContainer;
-	std::unordered_map<Edge, bool, HashForEdge, ComparatorForEdge> edgesHash;
+	//std::vector<Edge> edgesContainer;
+	EdgeHash edgesHash;
+	std::vector<Edge> boundary;
 
-	std::vector<BoundaryEdge> boundary;
 	glm::vec3 center;
 	glm::vec3 min;
 	glm::vec3 max;
@@ -258,7 +268,7 @@ std::pair<glm::vec3, glm::vec3> CADModel::getMinMax() const
 	return std::make_pair(min, max);
 }
 
-const std::vector<BoundaryEdge> & CADModel::getBoundary() const
+const std::vector<Edge> & CADModel::getBoundary() const
 {
 	return boundary;
 }
@@ -340,35 +350,13 @@ bool areVerticesEqual(const std::pair<glm::vec3, glm::vec3> & edge1, const std::
 	return equal;
 }
 
-void addEdgeToEdgesContainerSlow(std::vector<Edge> & edges, Edge & edge)
+void addEdgeToEdgesHash(EdgeHash & edges, Edge & edge)
 {
-	int n = 0;
-	bool edgeAlreadyPresent = false;
-	for (; n < (int)edges.size(); n++)
-	{			
-		if (areVerticesEqual(std::make_pair(edges[n].v0, edges[n].v1), std::make_pair(edge.v0, edge.v1)))
-		{
-			edgeAlreadyPresent = true;
-			break;
-		}
-	}
-	if (edgeAlreadyPresent)
-	{
-		edges[n].boundary = false;
-	}
-	else
-	{
-		edges.push_back(Edge(edge));
-	}	
-}
-
-void addEdgeToEdgesContainerFast(std::unordered_map<Edge, bool, HashForEdge, ComparatorForEdge> & edges, Edge & edge)
-{
-	//printEdgeInformation(edge);
-	if (edges.find(edge) != edges.end() || edges.find(Edge(edge.v1, edge.v0, edge.n1, edge.n0)) != edges.end())
+	auto dualEdge = Edge(edge.v1, edge.v0, edge.n1, edge.n0);
+	if (edges.find(edge) != edges.end() || edges.find(dualEdge) != edges.end())
 	{
 		edges[edge] = false;
-		edges[Edge(edge.v1, edge.v0, edge.n1, edge.n0)] = false;
+		edges[dualEdge] = false;
 	}
 	else
 	{
@@ -527,31 +515,18 @@ void CADModel::load(const std::string & filename)
 			glm::vec3 n1 = vertices[indices[i1]].normal;
 			glm::vec3 v2 = vertices[indices[i2]].position;
 			glm::vec3 n2 = vertices[indices[i2]].normal;
-
-			//addEdgeToEdgesContainerSlow(edgesContainer, Edge(v0, v1, n0, n1));
-			//addEdgeToEdgesContainerSlow(edgesContainer, Edge(v1, v2, n1, n2));
-			//addEdgeToEdgesContainerSlow(edgesContainer, Edge(v2, v0, n2, n0));
-
-			addEdgeToEdgesContainerFast(edgesHash, Edge(v0, v1, n0, n1));
-			addEdgeToEdgesContainerFast(edgesHash, Edge(v1, v2, n1, n2));
-			addEdgeToEdgesContainerFast(edgesHash, Edge(v2, v0, n2, n0));
-			//if (i >= 3) break;
+			addEdgeToEdgesHash(edgesHash, Edge(v0, v1, n0, n1));
+			addEdgeToEdgesHash(edgesHash, Edge(v1, v2, n1, n2));
+			addEdgeToEdgesHash(edgesHash, Edge(v2, v0, n2, n0));
 		}
-		//for (auto & edge : edgesContainer)
-		//{
-		//	if (edge.boundary)
-		//	{
-		//		boundary.push_back(BoundaryEdge(edge.v0, edge.v1, edge.n0, edge.n1));
-		//	}
-		//}
 		for (auto & edge : edgesHash)
 		{
 			if (edge.second)
 			{
-				boundary.push_back(BoundaryEdge(edge.first.v0, edge.first.v1, edge.first.n0, edge.first.n1));
+				boundary.push_back(edge.first);
 			}
 		}
-		//printf("Boundary has %zu edges\n", boundary.size());
+		printf("Boundary has %zu edges\n", boundary.size());
 	}
 	clock.stopCount();
 	metrics["boundary"] = clock.getTimeInMillisecond();

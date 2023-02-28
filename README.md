@@ -4,7 +4,8 @@ The following are the steps I followed to solve the addition of a "skirt" for a 
 
 Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
 
-<details><summary>Development Environment</summary>
+## Development Environment
+<details><summary>Show Content</summary>
 I decided to use the following technologies to do the solution
 
 1. **Microsoft Visual Studio 2019 with C++14 Standard :** To use the Standard Template Library
@@ -15,7 +16,8 @@ I decided to use the following technologies to do the solution
 6. **Dear ImGui :** To create a Graphical User Interface 
 </details>
 
-<details><summary>Open a STL file</summary>
+## Open a STL file
+<details><summary>Show Content</summary>
 Initially one should take a look at how the geometry looks. For that you can use any software that is over the internet that supports STL file format (some examples are MeshLab or Blender)
 
 That sounds easy but given that I will have to do things in code let me show you how to use the library Assimp (based https://learnopengl.com/Model-Loading/Model) for the purpose of loading a STL file
@@ -167,7 +169,8 @@ Since I still don't have a *graphics output* let me show you the information of 
 <p align="center"><img src="./OutputImages/WindowsTerminal_CeaHphSoXv.png"></p>
 </details>
 
-<details><summary>Creating window to display STL</summary>
+## Creaing window to display STL
+<details><summary>Show Content</summary>
 I have the STL file now in memory but life is not fun if I don'tsee something on the screen. So let me show you how to render | draw the geometry I just collected into a GLFW window that uses OpenGL.
 
 Given that the task is not to create a full renderer I will be using OpenGL Immediate Mode (a.k.a Old OpenGL or Legacy OpenGL) since it is a bit tedious to create the GPU objects (VAO,VBO) as well the shaders for modern OpenGL. Thus, no fancy lighting in the display that I will be using neither optimization of rendering geometries.
@@ -304,22 +307,167 @@ And just as a sanity check I decided to open other STL files to see how such geo
 Now I have a setup | graphical output to start creating the skirt of the STL file.
 </details>
 
-<details><summary>Finding the edge boundary</summary>
+## Finding the edge boundary
+<details close><summary>Show Content</summary>
+
+From seeing the STL I can see that a solution to create a skirt would be to find the boundary (edges) of a mesh and extend it along the normal at each vertex. So the question for this section is how to find such boundary?
+
+The solution is to think that an **edge is at the boundary if it is only connected to one primitive**. See the following plane example that has 6 edges from which 4 are the boundary and 2 (the diagonals) are sharing a face. All the edges are shown in black and the boundary is shown in purple.
+
+<p align="center"><img src="./OutputImages/RkfkL9Zccv.png"></p>
+
+With that in mind is to first create a structure called `Edge` that will **hold two vertices**. This looks like
+<details close><summary>Show Code</summary>
+
+```Cpp
+struct Edge
+{
+	Edge(glm::vec3 v0, glm::vec3 v1, glm::vec3 n0, glm::vec3 n1)
+		: v0(v0)
+		, v1(v1)
+		, n0(n0)
+		, n1(n1)
+	{
+
+	}
+	glm::vec3 v0;
+	glm::vec3 v1;
+	glm::vec3 n0;
+	glm::vec3 n1;
+};
+```
 </details>
 
-<details><summary>Sorting the edge boundary</summary>
+With such structure then I traverse the whole mesh geometry creating the edges and collecting them in the hash `std::unordered_map<Edge, bool, HashForEdge, ComparatorForEdge> edges`. The `bool` value in previous hash represents if an edge is at the boundary of the mesh or no.
+
+The `HashForEdge` and `ComparatorForEdge` are the following structures
+<details close><summary>Show Code</summary>
+
+```Cpp
+struct ComparatorForPoint
+{
+	bool operator()(const glm::vec3 & lhs, const glm::vec3 & rhs) const
+	{
+		return ((lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z));
+	}
+};
+
+inline std::string getStringFromPoint(const glm::vec3 & v)
+{
+	return 
+		std::to_string(v.x) + "_" + 
+		std::to_string(v.y) + "_" + 
+		std::to_string(v.z); 
+}
+
+struct HashForEdge
+{
+	std::size_t operator()(Edge const & edge) const
+	{
+		std::string s0 = getStringFromPoint(edge.v0);
+		std::string s1 = getStringFromPoint(edge.v1);
+		return std::hash<std::string>{}(s0 + "_" + s1);
+	}
+};
+
+struct ComparatorForEdge
+{
+	bool operator()(const Edge & lhs, const Edge & rhs) const
+	{
+		auto pointComparator = ComparatorForPoint();
+		auto order1 = 
+			pointComparator.operator()(lhs.v0, rhs.v0) && 
+			pointComparator.operator()(lhs.v1, rhs.v1);
+		auto order2 = 
+			pointComparator.operator()(lhs.v0, rhs.v1) && 
+			pointComparator.operator()(lhs.v1, rhs.v0);
+		return (order1 || order2);
+	}
+};
+
+```
+
 </details>
 
-<details><summary>Generating skirt using the sorted edge boundary</summary>
+I had to go define such *programming objects* given that the C++ STL will require a way of handling the `Edge` data type as a key for a hash table. The concept of *hashing* is out of the scope of the task at hand but the way I am using it is a standard way of doing it.
+
+More relevant is to note that `ComparatorForEdge` does a dual check with the variables `order1` and `order2` given that our structure `Edge` does not have the notion of direction (in the sense of a graph).
+
+Then I calculate the edge boundary, collected in the variable `std::vector<Edge> boundary`, with the following code
+<details close><summary>Show Code</summary>
+
+```Cpp
+typedef std::unordered_map<Edge, bool, HashForEdge, ComparatorForEdge> EdgeHash;
+
+void addEdgeToEdgesHash(EdgeHash & edges, Edge & edge)
+{
+	auto dualEdge = Edge(edge.v1, edge.v0, edge.n1, edge.n0);
+	if (edges.find(edge) != edges.end() || edges.find(dualEdge) != edges.end())
+	{
+		edges[edge] = false;
+		edges[dualEdge] = false;
+	}
+	else
+	{
+		edges[edge] = true;
+	}
+}
+
+void CADModel::load(const std::string & filename)
+{
+	// ... previous code ...
+	auto indices = meshes[0].getIndices();
+	auto vertices = meshes[0].getVertices();
+	for (size_t i = 0; i < indices.size(); i += 3)
+	{
+		size_t i0 = (i + 0);
+		size_t i1 = (i + 1);
+		size_t i2 = (i + 2);
+		glm::vec3 v0 = vertices[indices[i0]].position;
+		glm::vec3 n0 = vertices[indices[i0]].normal;
+		glm::vec3 v1 = vertices[indices[i1]].position;
+		glm::vec3 n1 = vertices[indices[i1]].normal;
+		glm::vec3 v2 = vertices[indices[i2]].position;
+		glm::vec3 n2 = vertices[indices[i2]].normal;
+		addEdgeToEdgesHash(edgesHash, Edge(v0, v1, n0, n1));
+		addEdgeToEdgesHash(edgesHash, Edge(v1, v2, n1, n2));
+		addEdgeToEdgesHash(edgesHash, Edge(v2, v0, n2, n0));
+	}
+	for (auto & edge : edgesHash)
+	{
+		if (edge.second)
+		{
+			boundary.push_back(edge.first);
+		}
+	}
+}
+```
+
 </details>
 
-<details><summary>Exporting skirt as STL file</summary>
+And if I display such boundary I have the following nice image (notice I am omitting the OpenGL code to display in this notes but the code in the repo has it)
+
+<p align="center"><img src="./OutputImages/AddSkirtToSTL_WKFQjSliu1.png"></p>
 </details>
 
-<details><summary>Adding interactive GUI to modify parameters on the fly</summary>
+## Sorting the edge boundary
+<details><summary>Show Content</summary>
 </details>
 
-<details><summary>Missing stuff in the application</summary>
+## Generating skirt using the sorted edge boundary
+<details><summary>Show Content</summary>
+</details>
+
+## Exporting skirt as STL file
+<details><summary>Show Content</summary>
+</details>
+
+## Adding interactive GUI to modify parameters on the fly
+<details><summary>Show Content</summary>
+</details>
+
+## Missing stuff in the application
+<details><summary>Show Content</summary>
 This section is to list the things that are missing in the previous solution, after all, no software is perfect and while I tried to cover as much as possible I had also a *deadline* regarding the amount of time I should be spending making the solution. Thus, here are the things that require fixing in my code
 
 * Refactor the code to have multiple translation units (a.k.a different cpp files)

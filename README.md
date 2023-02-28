@@ -4,7 +4,7 @@ The following are the steps I followed to solve the addition of a "skirt" for a 
 
 Above image is showing a skirt generated for a simple STL file that represents a plane. The skirt has a 45 degrees angle and 10 levels of discretization
 
-### Development Environment
+#### Development Environment
 <details><summary>Show Content</summary>
 I decided to use the following technologies to do the solution
 
@@ -16,7 +16,7 @@ I decided to use the following technologies to do the solution
 6. **Dear ImGui :** To create a Graphical User Interface 
 </details>
 
-### Open a STL file
+#### Open a STL file
 <details><summary>Show Content</summary>
 Initially one should take a look at how the geometry looks. For that you can use any software that is over the internet that supports STL file format (some examples are MeshLab or Blender)
 
@@ -169,7 +169,7 @@ Since I still don't have a *graphics output* let me show you the information of 
 <p align="center"><img src="./OutputImages/WindowsTerminal_CeaHphSoXv.png"></p>
 </details>
 
-### Creaing window to display STL
+#### Creaing window to display STL
 <details><summary>Show Content</summary>
 I have the STL file now in memory but life is not fun if I don'tsee something on the screen. So let me show you how to render | draw the geometry I just collected into a GLFW window that uses OpenGL.
 
@@ -307,7 +307,7 @@ And just as a sanity check I decided to open other STL files to see how such geo
 Now I have a setup | graphical output to start creating the skirt of the STL file.
 </details>
 
-### Finding the edge boundary
+#### Finding the edge boundary
 <details close><summary>Show Content</summary>
 
 From seeing the STL I can see that a solution to create a skirt would be to find the boundary (edges) of a mesh and extend it along the normal at each vertex. So the question for this section is how to find such boundary?
@@ -452,7 +452,7 @@ And if I display such boundary I have the following nice image (notice I am omit
 <p align="center"><img src="./OutputImages/AddSkirtToSTL_WKFQjSliu1.png"></p>
 </details>
 
-### Sorting the edge boundary
+#### Sorting the edge boundary
 <details close><summary>Show Content</summary>
 
 There is one more thing to do before moving into the skirt creation. The previous edge boundary I found might not be sorted, what do I mean by that? Well, if one thinks about it, when collecting edges it might happen that you start collecting an edge at let's say *the beginning of the boundary* but then you move to the *middle of the boundary* and then maybe return to the beginning. And worse, how do you I know what is the start and what is the end? So how to know the actual order of the edges in the boundary?
@@ -549,7 +549,7 @@ As a note, I think this section is the most important in developing the upcoming
 
 </details>
 
-### Generating skirt using the sorted edge boundary
+#### Generating skirt using the sorted edge boundary
 <details close><summary>Show Content</summary>
 
 For creating the skirt I just need to follow this diagram
@@ -713,12 +713,101 @@ Here is an image showing the skirt with the corner edges with stitching.
 
 </details>
 
-### Exporting skirt as STL file
-<details><summary>Show Content</summary>
+#### Exporting skirt as STL file
+<details open><summary>Show Content</summary>
+
+Last but not least is to save the created skirt in a STL file format.
+
+Doing this is simple (although can have some headaches) given that Assimp is able to not just import but also export geometries.
+
+Here is the code
+<details open><summary>Show Code</summary>
+
+```Cpp
+void CADModel::saveSkirt()
+{
+	Assimp::Exporter exporter;
+	aiScene outputScene;
+	auto exportResult = exporter.Export(&outputScene, "stl", "./output.stl");
+	if (exportResult != aiReturn_SUCCESS)
+	{
+		printf("Error exporting output.stl\n");
+	}
+}
+```
+
 </details>
 
-### Adding interactive GUI to modify parameters on the fly
-<details><summary>Show Content</summary>
+The *difficult* part of previous snippet is filling information of the `aiScene` object. This is because the internal variables of the `aiScene` are pointers that if are not handled careful the program throws, crashes, or will just save a corrupted file.
+
+Here a snippet of how the filling of the `aiScene` must be done
+<details open><summary>Show Code</summary>
+
+```Cpp
+aiScene outputScene;
+outputScene.mRootNode = new aiNode();
+outputScene.mMaterials = new aiMaterial*[1];
+outputScene.mNumMaterials = 1;
+outputScene.mMaterials[0] = new aiMaterial();
+auto numMeshesInSkirt = skirt.vertices.size();
+outputScene.mMeshes = new aiMesh*[numMeshesInSkirt];
+outputScene.mNumMeshes = numMeshesInSkirt;
+outputScene.mRootNode->mMeshes = new unsigned int[numMeshesInSkirt];
+outputScene.mRootNode->mNumMeshes = numMeshesInSkirt;
+for (size_t m = 0; m < numMeshesInSkirt; m++)
+{
+	outputScene.mMeshes[m] = new aiMesh();
+	outputScene.mMeshes[m]->mMaterialIndex = 0;
+	outputScene.mRootNode->mMeshes[m] = m;
+	auto pMesh = outputScene.mMeshes[m];
+	auto numVerticesInSkirt = skirt.vertices[m].size();
+	pMesh->mVertices = new aiVector3D[numVerticesInSkirt];
+	pMesh->mNumVertices = numVerticesInSkirt;
+	for (size_t n = 0; n < numVerticesInSkirt; n++)
+	{
+		pMesh->mVertices[n] = glmVec3ToAssimpVec3(skirt.vertices[m][n]);
+	}
+	auto numFacesInSkirt = skirt.vertices[m].size() - 2;
+	pMesh->mFaces = new aiFace[numFacesInSkirt];
+	pMesh->mNumFaces = numFacesInSkirt;
+	for (size_t n = 0; n < numFacesInSkirt; n++)
+	{
+		aiFace & face = pMesh->mFaces[n];
+		face.mIndices = new unsigned int[3];
+		face.mNumIndices = 3;
+		face.mIndices[0] = (n + 0);
+		if ((n % 2) == 0)
+		{
+			face.mIndices[1] = (n + 1);
+			face.mIndices[2] = (n + 2);
+		}
+		else
+		{
+			face.mIndices[1] = (n + 2);
+			face.mIndices[2] = (n + 1);
+		}
+	}
+}
+// don't forget to clean (delete and delete[] operators) the
+// objects allocated, if not file does not get exported or throws
+```
+
+</details>
+
+The current provided solution code has commented the export portion given that it throws in Release mode and although it does save the resulting skirt if running in Debug mode, sometimes the resulting STL file is a corrupted one.
+</details>
+
+#### Adding interactive GUI to modify parameters on the fly
+<details close><summary>Show Content</summary>
+
+Another fun part to do in any program is to have a GUI that can change parameters on the fly. I decided to use the library called Dear ImGui (very common in the graphics programming world).
+
+The idea of the library is to create everything on the fly and the user just pass a reference to variables that need binding. I will not go into details of how to compile | use the library (its GitHub has enough documentation for that).
+
+Instead, let me show you the final result of adding some slider to manipulate **levels of discretization**, **length**, and **falling angle** of a skirt
+
+<p align="center"><img src="./OutputImages/devenv_hhqXKkbll7.gif"></p>
+
 </details>
 
 ### Missing stuff in the application
